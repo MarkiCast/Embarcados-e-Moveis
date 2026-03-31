@@ -1,13 +1,12 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 
-ESP8266WiFiMulti WiFiMulti;
 const char* ssid = "Frodo";
 const char* password = "marceloo";
-const char* serverBaseUrl = "http://192.168.43.210:8000";
+const char* serverHost = "192.168.43.168";
+const uint16_t serverPort = 8000;
 unsigned long counter = 0;
 
 void printWiFiInfo() {
@@ -23,6 +22,25 @@ void printWiFiInfo() {
   Serial.println(WiFi.RSSI());
 }
 
+bool ensureWiFiConnected() {
+  if (WiFi.status() == WL_CONNECTED) {
+    return true;
+  }
+
+  Serial.print("Conectando no Wi-Fi ");
+  Serial.println(ssid);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && (millis() - start) < 15000) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  return WiFi.status() == WL_CONNECTED;
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -36,22 +54,26 @@ void setup() {
     delay(1000);
   }
 
-  WiFi.mode(WIFI_STA);
-  WiFiMulti.addAP(ssid, password);
-  Serial.print("Wi-Fi SSID: ");
-  Serial.println(ssid);
+  if (ensureWiFiConnected()) {
+    Serial.println("Wi-Fi conectado no setup");
+    printWiFiInfo();
+  } else {
+    Serial.println("Falha ao conectar no setup");
+  }
   Serial.print("Servidor alvo: ");
-  Serial.println(serverBaseUrl);
+  Serial.print(serverHost);
+  Serial.print(":");
+  Serial.println(serverPort);
 }
 
 void loop() {
-  if ((WiFiMulti.run() == WL_CONNECTED)) {
+  if (ensureWiFiConnected()) {
     Serial.println("Wi-Fi conectado");
     printWiFiInfo();
 
     WiFiClient client;
     HTTPClient http;
-    String pingUrl = String(serverBaseUrl) + "/api/ping";
+    String pingUrl = String("http://") + serverHost + ":" + String(serverPort) + "/api/ping";
     Serial.print("[HTTP] GET ");
     Serial.println(pingUrl);
     if (http.begin(client, pingUrl)) {
@@ -71,7 +93,7 @@ void loop() {
     }
 
     HTTPClient httpPost;
-    String postUrl = String(serverBaseUrl) + "/api/device-message";
+    String postUrl = String("http://") + serverHost + ":" + String(serverPort) + "/api/device-message";
     if (httpPost.begin(client, postUrl)) {
       httpPost.addHeader("Content-Type", "application/json");
       String body = "{";
