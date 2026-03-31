@@ -57,3 +57,109 @@ Decisões para manter o projeto simples:
 - Não usar autenticação no início (rede local da disciplina).
 - Não usar banco de dados no início (arquivo JSON).
 - Começar com 1 sensor e expandir depois se necessário.
+
+Plano atualizado (execução por fases):
+
+Fase 1 - Embarcado (foco atual)
+- Objetivo: garantir conexão Wi-Fi da placa e leitura de 1 sensor de temperatura.
+- Entregável mínimo:
+  - Placa conecta no Wi-Fi.
+  - Sensor DS18B20 é lido corretamente.
+  - Valor aparece no Serial Monitor em intervalos regulares.
+- Observação: nesta fase o backend não é necessário para validação do hardware.
+
+Fase 2 - Backend desacoplado da placa (com mocks)
+- Objetivo: desenvolver e validar toda a lógica de backend sem depender do hardware.
+- Estratégia:
+  - Criar um mock de envio da placa com temperaturas aleatórias entre 15°C e 35°C.
+  - Simular o mesmo formato de payload que será usado pela placa real.
+  - Injetar leituras em intervalos configuráveis.
+- Persistência:
+  - Armazenar leituras em banco local simples (SQLite recomendado) ou JSON inicial.
+  - Salvar timestamp, temperatura, origem e dados de comparação.
+
+Requisitos do backend (Fase 2):
+- Coleta de dados:
+  - Receber temperatura simulada da placa via API interna/endpoint.
+  - Buscar temperatura de Florianópolis em API pública (Open-Meteo sem chave).
+- Comparação:
+  - Calcular diferença instantânea (quarto - Floripa).
+  - Agregar por hora (média, mínima, máxima).
+  - Calcular estatísticas de permanência:
+    - porcentagem do tempo acima de Floripa
+    - porcentagem do tempo dentro de uma faixa (ex.: ±1°C)
+    - maior diferença positiva e negativa no período.
+- Endpoints para futuro frontend:
+  - GET /api/current (temperatura atual da placa, de Floripa e diferença)
+  - GET /api/history?from=&to= (série temporal para gráficos)
+  - GET /api/stats/hourly?from=&to= (estatísticas por hora)
+  - GET /api/stats/summary?from=&to= (resumo geral do período)
+  - GET /api/health (status do backend)
+
+Modelagem inicial de dados:
+- leitura_quarto:
+  - timestamp
+  - tempC
+  - source (mock ou esp32)
+- leitura_floripa:
+  - timestamp
+  - tempC
+  - provider (open-meteo)
+- comparacao:
+  - timestamp
+  - temp_quarto_c
+  - temp_floripa_c
+  - diff_c
+
+Planejamento técnico das partes do backend:
+1) Módulo de ingestão mock
+- Gera temperatura aleatória entre 15 e 35.
+- Permite frequência configurável.
+
+2) Módulo de clima externo
+- Busca temperatura atual de Florianópolis.
+- Implementa fallback/cache curto para evitar falhas momentâneas da API externa.
+
+3) Módulo de comparação
+- Faz cálculo instantâneo e agregações horárias.
+- Consolida estatísticas para gráficos e dashboard.
+
+4) Módulo de persistência
+- Salva eventos e leituras para consultas por período.
+- Prepara base para migração futura para dados reais da placa.
+
+5) API de consulta
+- Expõe endpoints para consumo do frontend.
+- Retorna JSON consistente com filtros de período.
+
+Critério de pronto da Fase 2:
+- Backend roda sem placa conectada.
+- Mock gera dados contínuos entre 15°C e 35°C.
+- Dados de Floripa são coletados regularmente.
+- Comparações e estatísticas horárias são calculadas e persistidas.
+- Endpoints de current, history e stats respondem corretamente.
+
+Fase 3 - Integração placa real + backend
+- Substituir origem mock por POST real da placa.
+- Manter as mesmas estruturas e endpoints para não quebrar backend/frontend.
+
+Fase 4 - Frontend React Web (sem login)
+- Decisão: o app será React Web para abrir em qualquer celular/navegador sem autenticação.
+- Objetivo da etapa 1 do frontend:
+  - Criar interface com duas views principais:
+    - View 1 (inicial): comparação atual entre quarto e Florianópolis.
+    - View 2: comparação gráfica ao longo do tempo.
+  - Navegação por botão entre as duas views.
+- Requisitos confirmados para frontend:
+  - Sem login/autenticação.
+  - Estado de erro amigável quando backend estiver indisponível.
+  - Atualização automática dos dados em intervalo maior (30 minutos como padrão inicial).
+- Endpoints do backend fase 2 usados pelo frontend:
+  - GET /api/current
+  - GET /api/history
+  - GET /api/stats/summary
+  - GET /api/health
+- Entregável da etapa 1:
+  - Projeto React Web inicial criado e rodando localmente.
+  - Layout base com as duas views e botão de troca.
+  - Estrutura pronta para próximos incrementos de gráfico e estatísticas.

@@ -1,0 +1,308 @@
+.mobile-shell {
+  width: min(1100px, 96vw);
+  margin: 0 auto;
+  padding: 18px 14px 90px;
+  display: grid;
+  gap: 12px;
+}
+
+.appbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.app-title-wrap h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #4c1d95;
+}
+
+.app-title-wrap p {
+  margin: 4px 0 0;
+  color: #7c3aed;
+  font-size: 13px;
+}
+
+.refresh-btn {
+  border: none;
+  background: #7c3aed;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #ede9fe;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.compare-visual {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #ede9fe;
+  border-radius: 18px;
+  overflow: hidden;
+  min-height: 360px;
+}
+
+.compare-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 16px 14px 0;
+}
+
+.compare-side {
+  text-align: center;
+}
+
+.compare-side p,
+.compare-side strong {
+  margin: 0;
+}
+
+.title-room,
+.temp-room {
+  color: #9333ea;
+}
+
+.title-floripa,
+.temp-floripa {
+  color: #2dd4bf;
+}
+
+.compare-side p {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.compare-side strong {
+  font-size: 36px;
+  line-height: 1.1;
+}
+
+.bar-stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  height: 250px;
+  margin-top: 12px;
+}
+
+.bar-column {
+  width: 100%;
+  transition: height 0.35s ease;
+}
+
+.bar-room {
+  background: #9333ea;
+}
+
+.bar-floripa {
+  background: #2dd4bf;
+}
+
+.diff-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #111827;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #ddd6fe;
+  border-radius: 14px;
+  min-width: 150px;
+  padding: 10px 12px;
+}
+
+.diff-overlay p {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.diff-overlay strong {
+  display: block;
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.diff-overlay span {
+  display: block;
+  margin-top: 2px;
+  color: #5b21b6;
+  font-size: 13px;
+}
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.period-line {
+  margin: -2px 0 12px;
+  color: #6d28d9;
+  font-size: 13px;
+}
+
+.stats-list {
+  display: grid;
+  gap: 8px;
+}
+
+.stats-title {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  color: #5b21b6;
+}
+
+.stats-list p {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.stats-list strong {
+  color: #4c1d95;
+}
+
+.chart-panel .chart {
+  width: 100%;
+  border-radius: 10px;
+  background: #faf5ff;
+}
+
+.chart-grid-row line {
+  stroke: #e9d5ff;
+  stroke-width: 1;
+}
+
+.chart-grid-col line {
+  stroke: #f3e8ff;
+  stroke-width: 1;
+}
+
+.chart-grid-row text,
+.chart-grid-col text {
+  font-size: 11px;
+  fill: #6d28d9;
+}
+
+.line-room {
+  fill: none;
+  stroke: #9333ea;
+  stroke-width: 3;
+}
+
+.line-floripa {
+  fill: none;
+  stroke: #2dd4bf;
+  stroke-width: 3;
+}
+
+.dot-room {
+  fill: #9333ea;
+}
+
+.dot-floripa {
+  fill: #2dd4bf;
+}
+
+.live-label-room {
+  fill: #6b21a8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.live-label-floripa {
+  fill: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  font-weight: 600;
+}
+
+.legend .room {
+  color: #9333ea;
+}
+
+.legend .floripa {
+  color: #0d9488;
+}
+
+.hint {
+  margin: 0;
+  color: #6b7280;
+}
+
+.info-panel p {
+  margin: 2px 0;
+  color: #6d28d9;
+  font-size: 13px;
+}
+
+.info-panel .backend {
+  overflow-wrap: anywhere;
+}
+
+.error-box {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+}
+
+.bottom-tabs {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14px;
+  width: min(740px, calc(100vw - 20px));
+  background: #ffffff;
+  border: 1px solid #ddd6fe;
+  border-radius: 16px;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+.bottom-tabs button {
+  border: none;
+  border-radius: 12px;
+  padding: 10px;
+  background: transparent;
+  color: #374151;
+  font-weight: 600;
+}
+
+.bottom-tabs button.active {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
+@media (max-width: 540px) {
+  .compare-side strong {
+    font-size: 29px;
+  }
+
+  .diff-overlay strong {
+    font-size: 28px;
+  }
+}
