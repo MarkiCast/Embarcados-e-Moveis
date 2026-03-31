@@ -1,0 +1,59 @@
+Projeto da disciplina: Monitoramento de temperatura do quarto vs. temperatura de Florianópolis
+
+Eu acho meu quarto muito quente, muito mais quente do que a temperatura normal de Floripa.
+
+A ideia do projeto é simples e dividida em 3 partes:
+
+1) Embarcado (ESP32 - Wemos D1)
+- Um sensor de temperatura ficará no meu quarto.
+- A placa fará as leituras de temperatura em intervalos regulares.
+- Os dados serão enviados via Wi-Fi.
+
+2) Servidor (backend no meu computador)
+- Meu computador receberá via Wi-Fi as temperaturas registradas pela placa, idealmente de hora em hora.
+- O backend também consultará a temperatura de referência de Florianópolis.
+- Em seguida, fará a comparação entre a temperatura do quarto e a temperatura normal de Floripa.
+
+3) Aplicativo (React)
+- O app será a interface para visualizar os dados processados no backend.
+- Ele mostrará a comparação entre as temperaturas e a diferença entre elas de forma clara.
+
+Objetivo geral:
+Implementar uma solução simples com comunicação via Wi-Fi entre embarcado, backend e aplicativo para acompanhar e comparar a temperatura do quarto com a de Florianópolis.
+
+Implementação simples sugerida:
+
+1) Embarcado (ESP32 - Wemos D1)
+- Ler o sensor DS18B20 em intervalos regulares (idealmente 1 vez por hora).
+- Conectar no Wi-Fi local.
+- Enviar a leitura para o backend via HTTP POST em JSON.
+- Exemplo de payload:
+  { "deviceId": "quarto-1", "tempC": 29.4, "timestamp": "2026-03-25T10:00:00Z" }
+
+2) Servidor (backend no computador)
+- Receber as leituras do ESP32 no endpoint POST /api/temperature.
+- Salvar histórico inicial em arquivo JSON (sem banco, para manter simples).
+- Consultar temperatura de Florianópolis em API pública (Open-Meteo, sem chave).
+- Comparar temperatura do quarto com Floripa.
+- Disponibilizar endpoints:
+  - GET /api/compare (última leitura + temperatura de Floripa + diferença)
+  - GET /api/history (histórico de leituras)
+
+3) Aplicativo (React)
+- Exibir os dados de forma clara em uma tela simples.
+- Mostrar:
+  - Temperatura do quarto
+  - Temperatura de Florianópolis
+  - Diferença entre elas
+  - Histórico recente
+
+Fluxo mínimo de dados:
+- ESP32 envia leitura -> backend recebe e salva.
+- App consulta backend -> backend consulta Floripa e calcula diferença.
+- App exibe comparação e histórico.
+
+Decisões para manter o projeto simples:
+- Usar HTTP em vez de MQTT nesta primeira versão.
+- Não usar autenticação no início (rede local da disciplina).
+- Não usar banco de dados no início (arquivo JSON).
+- Começar com 1 sensor e expandir depois se necessário.
