@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-HOST = "192.168.43.168"
+HOST = "0.0.0.0"
 PORT = 8000
 
 latest_message = None
