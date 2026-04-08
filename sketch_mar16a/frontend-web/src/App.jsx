@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 const AUTO_REFRESH_MS = 30 * 60 * 1000
@@ -13,6 +13,29 @@ const CHART_SIZE = {
   paddingRight: 86,
 }
 const HALF_HOUR_MS = 30 * 60 * 1000
+const THREE_MINUTES_MS = 3 * 60 * 1000
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+const FAST_REFRESH_MS = 15 * 1000
+const TIME_WINDOWS = {
+  '7d': {
+    label: '7 dias',
+    durationMs: SEVEN_DAYS_MS,
+    bucketMs: HALF_HOUR_MS,
+    floripaBucketMs: 60 * 60 * 1000,
+    summaryIntervalMinutes: 30,
+    xTickMs: 24 * 60 * 60 * 1000,
+    refreshMs: AUTO_REFRESH_MS,
+  },
+  '3m': {
+    label: '3 minutos',
+    durationMs: THREE_MINUTES_MS,
+    bucketMs: 15 * 1000,
+    floripaBucketMs: 60 * 1000,
+    summaryIntervalMinutes: 3,
+    xTickMs: 30 * 1000,
+    refreshMs: FAST_REFRESH_MS,
+  },
+}
 
 function valueToChartX(timestampMs, fromMs, toMs) {
   const total = Math.max(toMs - fromMs, 1)
@@ -148,6 +171,7 @@ function computeSeriesStats(series, valueKey) {
 
 function App() {
   const [view, setView] = useState('current')
+  const [timeWindow, setTimeWindow] = useState('7d')
   const [current, setCurrent] = useState(null)
   const [history, setHistory] = useState([])
   const [floripaHistory, setFloripaHistory] = useState([])
@@ -157,14 +181,16 @@ function App() {
   const [lastSyncAt, setLastSyncAt] = useState('')
   const [periodLabel, setPeriodLabel] = useState('')
   const [periodRange, setPeriodRange] = useState(null)
+  const activeWindowConfig = TIME_WINDOWS[timeWindow] || TIME_WINDOWS['7d']
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async (windowKey = timeWindow) => {
     setLoading(true)
     setError('')
     try {
+      const selectedWindow = TIME_WINDOWS[windowKey] || TIME_WINDOWS['7d']
       const now = new Date()
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      const fromIso = sevenDaysAgo.toISOString()
+      const fromDate = new Date(now.getTime() - selectedWindow.durationMs)
+      const fromIso = fromDate.toISOString()
       const toIso = now.toISOString()
 
       const periodRangeQuery = `from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`
@@ -172,7 +198,9 @@ function App() {
         fetch(`${API_BASE}/api/current`),
         fetch(`${API_BASE}/api/history?${periodRangeQuery}&limit=5000`),
         fetch(`${API_BASE}/api/floripa/history?${periodRangeQuery}&limit=5000`),
-        fetch(`${API_BASE}/api/stats/summary?${periodRangeQuery}&toleranceC=1&intervalMinutes=30`),
+        fetch(
+          `${API_BASE}/api/stats/summary?${periodRangeQuery}&toleranceC=1&intervalMinutes=${selectedWindow.summaryIntervalMinutes}`
+        ),
       ])
 
       if (!currentRes.ok || !historyRes.ok || !floripaRes.ok || !summaryRes.ok) {
@@ -190,7 +218,7 @@ function App() {
       setSummary(summaryJson.summary || null)
       setLastSyncAt(new Date().toISOString())
       setPeriodLabel(
-        `${sevenDaysAgo.toLocaleString('pt-BR', {
+        `${fromDate.toLocaleString('pt-BR', {
           day: '2-digit',
           month: '2-digit',
           hour: '2-digit',
@@ -202,19 +230,29 @@ function App() {
           minute: '2-digit',
         })}`
       )
-      setPeriodRange({ fromMs: sevenDaysAgo.getTime(), toMs: now.getTime() })
+      setPeriodRange({
+        fromMs: fromDate.getTime(),
+        toMs: now.getTime(),
+        roomBucketMs: selectedWindow.bucketMs,
+        floripaBucketMs: selectedWindow.floripaBucketMs,
+        xTickMs: selectedWindow.xTickMs,
+      })
     } catch {
       setError(`Não foi possível atualizar dados do backend em ${API_BASE}.`)
     } finally {
       setLoading(false)
     }
-  }
+  }, [timeWindow])
 
   useEffect(() => {
-    fetchDashboardData()
-    const timer = setInterval(fetchDashboardData, AUTO_REFRESH_MS)
+    fetchDashboardData(timeWindow)
+    const timer = setInterval(() => fetchDashboardData(timeWindow), activeWindowConfig.refreshMs)
     return () => clearInterval(timer)
-  }, [])
+  }, [fetchDashboardData, timeWindow, activeWindowConfig.refreshMs])
+
+  const roomBucketMs = periodRange?.roomBucketMs ?? HALF_HOUR_MS
+  const floripaBucketMs = periodRange?.floripaBucketMs ?? 60 * 60 * 1000
+  const xTickMs = periodRange?.xTickMs ?? 24 * 60 * 60 * 1000
 
   const roomChartSeries = useMemo(() => {
     const sorted = [...history]
@@ -224,7 +262,7 @@ function App() {
 
     const byBucket = new Map()
     for (const item of sorted) {
-      const bucketMs = Math.floor(item.timestampMs / HALF_HOUR_MS) * HALF_HOUR_MS
+      const bucketMs = Math.floor(item.timestampMs / roomBucketMs) * roomBucketMs
       const existing = byBucket.get(bucketMs)
       if (existing) {
         existing.roomSum += item.tempRoomC
@@ -248,7 +286,7 @@ function App() {
         avgFloripaC: Math.round((bucket.floripaSum / bucket.count) * 100) / 100,
       }))
       .sort((a, b) => a.timestampMs - b.timestampMs)
-  }, [history])
+  }, [history, roomBucketMs])
 
   const floripaChartSeries = useMemo(() => {
     const sorted = [...floripaHistory]
@@ -258,7 +296,7 @@ function App() {
 
     const byBucket = new Map()
     for (const item of sorted) {
-      const bucketMs = Math.floor(item.timestampMs / HALF_HOUR_MS) * HALF_HOUR_MS
+      const bucketMs = Math.floor(item.timestampMs / floripaBucketMs) * floripaBucketMs
       const existing = byBucket.get(bucketMs)
       if (existing) {
         existing.floripaSum += item.tempC
@@ -279,19 +317,19 @@ function App() {
         avgFloripaC: Math.round((bucket.floripaSum / bucket.count) * 100) / 100,
       }))
       .sort((a, b) => a.timestampMs - b.timestampMs)
-  }, [floripaHistory])
+  }, [floripaHistory, floripaBucketMs])
 
   const roomSegments = useMemo(
-    () => splitSeriesByGap(roomChartSeries, HALF_HOUR_MS),
-    [roomChartSeries]
+    () => splitSeriesByGap(roomChartSeries, roomBucketMs),
+    [roomChartSeries, roomBucketMs]
   )
 
   const floripaSegments = useMemo(
-    () => splitSeriesByGap(floripaChartSeries, 60 * 60 * 1000),
-    [floripaChartSeries]
+    () => splitSeriesByGap(floripaChartSeries, floripaBucketMs),
+    [floripaChartSeries, floripaBucketMs]
   )
 
-  const fromMs = periodRange?.fromMs ?? Date.now() - 7 * 24 * 60 * 60 * 1000
+  const fromMs = periodRange?.fromMs ?? Date.now() - SEVEN_DAYS_MS
   const toMs = periodRange?.toMs ?? Date.now()
   const roomValues = roomChartSeries.map((item) => item.avgRoomC)
   const floripaValues = floripaChartSeries.map((item) => item.avgFloripaC)
@@ -316,19 +354,29 @@ function App() {
     const value = chartMax - (index * (chartMax - chartMin)) / 4
     return Math.round(value * 10) / 10
   })
-  const dayTicks = useMemo(() => {
+  const xTicks = useMemo(() => {
     const ticks = []
-    const cursor = new Date(fromMs)
-    cursor.setHours(0, 0, 0, 0)
-    if (cursor.getTime() < fromMs) {
-      cursor.setDate(cursor.getDate() + 1)
+    if (xTickMs <= 0) {
+      return ticks
     }
-    while (cursor.getTime() <= toMs) {
-      ticks.push(cursor.getTime())
-      cursor.setDate(cursor.getDate() + 1)
+    let cursorMs = Math.ceil(fromMs / xTickMs) * xTickMs
+    while (cursorMs <= toMs) {
+      ticks.push(cursorMs)
+      cursorMs += xTickMs
     }
     return ticks
-  }, [fromMs, toMs])
+  }, [fromMs, toMs, xTickMs])
+  const formatTickLabel = (tickMs) =>
+    timeWindow === '3m'
+      ? new Date(tickMs).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      : new Date(tickMs).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+        })
   const lastRoomChartValue = roomValues.length ? roomValues[roomValues.length - 1] : null
   const lastFloripaChartValue = floripaValues.length ? floripaValues[floripaValues.length - 1] : null
   const lastRoomBucketMs = roomChartSeries.length
@@ -355,6 +403,9 @@ function App() {
   const lastSyncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleString('pt-BR')
     : 'Ainda não sincronizado'
+  const periodTitle = `últimos ${activeWindowConfig.label}`
+  const periodFallback = `Últimos ${activeWindowConfig.label}`
+  const bucketMinutesText = activeWindowConfig.summaryIntervalMinutes
   const roomTemp = current?.tempRoomC ?? null
   const floripaTemp = current?.tempFloripaC ?? null
   const diffValue = current?.diffC ?? null
@@ -409,11 +460,32 @@ function App() {
       <header className="appbar">
         <div className="app-title-wrap">
           <h1>Termômetro Floripa</h1>
-          <p>Atualização automática a cada 30 minutos</p>
+          <p>
+            Atualização automática a cada{' '}
+            {activeWindowConfig.refreshMs < 60000
+              ? `${Math.round(activeWindowConfig.refreshMs / 1000)} segundos`
+              : `${Math.round(activeWindowConfig.refreshMs / 60000)} minutos`}
+          </p>
         </div>
-        <button className="refresh-btn" onClick={fetchDashboardData}>
-          Atualizar
-        </button>
+        <div className="appbar-actions">
+          <div className="window-toggle" role="group" aria-label="Janela de tempo">
+            <button
+              className={timeWindow === '7d' ? 'active' : ''}
+              onClick={() => setTimeWindow('7d')}
+            >
+              7 dias
+            </button>
+            <button
+              className={timeWindow === '3m' ? 'active' : ''}
+              onClick={() => setTimeWindow('3m')}
+            >
+              3 min
+            </button>
+          </div>
+          <button className="refresh-btn" onClick={() => fetchDashboardData(timeWindow)}>
+            Atualizar
+          </button>
+        </div>
       </header>
 
       {error && <section className="error-box">{error}</section>}
@@ -449,11 +521,13 @@ function App() {
           </section>
 
           <section className="panel">
-          <h2>Resumo dos últimos 7 dias</h2>
-          <p className="period-line">Período analisado: {periodLabel || 'Últimos 7 dias'}</p>
-          <p className="period-line">Comparação em blocos de 30 min com horários em que a placa esteve ligada.</p>
+          <h2>Resumo dos {periodTitle}</h2>
+          <p className="period-line">Período analisado: {periodLabel || periodFallback}</p>
           <p className="period-line">
-            Blocos de comparação analisados: {summary ? summary.count : '--'} (cada bloco = 30 min com leitura da placa).
+            Comparação em blocos de {bucketMinutesText} min com horários em que a placa esteve ligada.
+          </p>
+          <p className="period-line">
+            Blocos de comparação analisados: {summary ? summary.count : '--'} (cada bloco = {bucketMinutesText} min com leitura da placa).
           </p>
           <h3 className="stats-title">Comparação (Quarto - Floripa)</h3>
           <div className="stats-list">
@@ -548,8 +622,8 @@ function App() {
 
       {!loading && view === 'chart' && (
         <section className="panel chart-panel">
-          <h2>Comparação ao longo dos últimos 7 dias</h2>
-          <p className="period-line">Período analisado: {periodLabel || 'Últimos 7 dias'}</p>
+          <h2>Comparação ao longo dos {periodTitle}</h2>
+          <p className="period-line">Período analisado: {periodLabel || periodFallback}</p>
           {roomChartSeries.length < 2 && floripaChartSeries.length < 2 ? (
             <p className="hint">Dados insuficientes para gráfico. Gere mais leituras mock.</p>
           ) : (
@@ -572,10 +646,10 @@ function App() {
                   )
                 })}
 
-                {dayTicks.map((tickMs, index) => {
+                {xTicks.map((tickMs, index) => {
                   const x = valueToChartX(tickMs, fromMs, toMs)
                   return (
-                    <g key={`x-day-${index}`} className="chart-grid-col">
+                    <g key={`x-tick-${index}`} className="chart-grid-col">
                       <line
                         x1={x}
                         y1={CHART_SIZE.paddingTop}
@@ -587,10 +661,7 @@ function App() {
                         y={CHART_SIZE.height - 8}
                         textAnchor="middle"
                       >
-                        {new Date(tickMs).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                        })}
+                        {formatTickLabel(tickMs)}
                       </text>
                     </g>
                   )

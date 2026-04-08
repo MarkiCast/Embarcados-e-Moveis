@@ -4,7 +4,7 @@ $frontendDir = Join-Path $projectRoot "frontend-web"
 Start-Process powershell -ArgumentList @(
   "-NoExit",
   "-Command",
-  "Set-Location '$projectRoot'; python .\servidor_backend_fase2.py"
+  "Set-Location '$projectRoot'; `$env:PYTHONUNBUFFERED='1'; python -u .\servidor_backend_fase2.py"
 )
 
 Start-Process powershell -ArgumentList @(

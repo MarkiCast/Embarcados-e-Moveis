@@ -13,6 +13,12 @@
   gap: 10px;
 }
 
+.appbar-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .app-title-wrap h1 {
   margin: 0;
   font-size: 24px;
@@ -33,6 +39,27 @@
   border-radius: 12px;
   padding: 10px 12px;
   font-weight: 600;
+}
+
+.window-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.window-toggle button {
+  border: none;
+  background: #ffffff;
+  color: #5b21b6;
+  padding: 8px 10px;
+  font-weight: 700;
+}
+
+.window-toggle button.active {
+  background: #7c3aed;
+  color: #ffffff;
 }
 
 .panel {
@@ -298,6 +325,14 @@
 }
 
 @media (max-width: 540px) {
+  .appbar {
+    align-items: stretch;
+  }
+
+  .appbar-actions {
+    justify-items: stretch;
+  }
+
   .compare-side strong {
     font-size: 29px;
   }

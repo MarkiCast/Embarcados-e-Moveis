@@ -317,7 +317,7 @@ class Phase2Backend:
         return self.get_interval_stats(from_ts=from_ts, to_ts=to_ts, interval_minutes=60)
 
     def get_interval_stats(self, from_ts: str | None, to_ts: str | None, interval_minutes: int) -> list[dict]:
-        safe_interval = max(30, min(int(interval_minutes), 240))
+        safe_interval = max(3, min(int(interval_minutes), 240))
         bucket_seconds = safe_interval * 60
         where, params = self._build_time_filter(from_ts, to_ts)
         sql = f"""

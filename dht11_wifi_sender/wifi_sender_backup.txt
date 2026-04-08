@@ -1,0 +1,131 @@
+#include <DHT11.h>
+
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <HTTPClient.h>
+#else
+#error "Placa nao suportada para este sketch"
+#endif
+
+//#define DHT11PIN 4
+
+DHT11 dht11(4);
+
+const char* wifiSsid = "Frodo";
+//const char* wifiPassword = "marceloo";
+const char* serverUrl = "http://192.168.43.168:8000/api/device-message";
+const char* deviceId = "esp-dht11-01";
+
+const unsigned long sendIntervalMs = 2000;
+const unsigned long wifiConnectTimeoutMs = 20000;
+unsigned long lastSendMs = 0;
+unsigned long messageCounter = 0;
+
+bool connectWiFi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    return true;
+  }
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifiSsid);
+  Serial.print("Conectando no Wi-Fi ");
+  Serial.println(wifiSsid);
+
+  unsigned long startedAt = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    if (millis() - startedAt > wifiConnectTimeoutMs) {
+      Serial.println("Falha ao conectar no Wi-Fi");
+      return false;
+    }
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("Wi-Fi conectado");
+  Serial.print("IP local: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Servidor alvo: ");
+  Serial.println(serverUrl);
+  return true;
+}
+
+void sendDhtReading() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Sem Wi-Fi, envio ignorado");
+    return;
+  }
+
+  int temperature = dht11.readTemperature();
+  if (temperature == DHT11::ERROR_CHECKSUM || temperature == DHT11::ERROR_TIMEOUT) {
+    Serial.print("Falha leitura temperatura DHT11: ");
+    Serial.println(DHT11::getErrorString(temperature));
+    return;
+  }
+
+  int humidity = dht11.readHumidity();
+  if (humidity == DHT11::ERROR_CHECKSUM || humidity == DHT11::ERROR_TIMEOUT) {
+    Serial.print("Falha leitura umidade DHT11: ");
+    Serial.println(DHT11::getErrorString(humidity));
+    return;
+  }
+
+  Serial.print("Humidity (%): ");
+  Serial.println(humidity);
+  Serial.print("Temperature (C): ");
+  Serial.println(temperature);
+
+  WiFiClient client;
+  HTTPClient http;
+
+  if (!http.begin(client, serverUrl)) {
+    Serial.println("Erro ao iniciar HTTP");
+    return;
+  }
+
+  http.addHeader("Content-Type", "application/json");
+
+  String payload = "{";
+  payload += "\"deviceId\":\"" + String(deviceId) + "\",";
+  payload += "\"counter\":" + String(messageCounter) + ",";
+  payload += "\"tempC\":" + String(temperature) + ",";
+  payload += "\"humidity\":" + String(humidity) + ",";
+  payload += "\"millis\":" + String(millis());
+  payload += "}";
+
+  int httpCode = http.POST(payload);
+  if (httpCode > 0) {
+    String responseBody = http.getString();
+    Serial.print("HTTP ");
+    Serial.print(httpCode);
+    Serial.print(" -> ");
+    Serial.println(responseBody);
+  } else {
+    Serial.print("Falha HTTP: ");
+    Serial.println(http.errorToString(httpCode));
+  }
+
+  http.end();
+  messageCounter++;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  connectWiFi();
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED && !connectWiFi()) {
+    delay(2000);
+    return;
+  }
+
+  unsigned long now = millis();
+  if (now - lastSendMs >= sendIntervalMs) {
+    lastSendMs = now;
+    sendDhtReading();
+  }
+}

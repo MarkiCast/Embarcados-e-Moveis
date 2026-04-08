@@ -1,4 +1,4 @@
-#include <dht11.h>
+#include <DHT11.h>
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -10,13 +10,13 @@
 #error "Placa nao suportada para este sketch"
 #endif
 
-#define DHT11PIN 4
+//#define DHT11PIN 4
 
-dht11 DHT11;
+DHT11 dht11(4);
 
 const char* wifiSsid = "Frodo";
-const char* wifiPassword = "marceloo";
-const char* serverUrl = "http://192.168.43.168:8000/api/device-message";
+//const char* wifiPassword = "marceloo";
+const char* serverUrl = "http://192.168.43.168:8100/api/temperature";
 const char* deviceId = "esp-dht11-01";
 
 const unsigned long sendIntervalMs = 2000;
@@ -30,7 +30,7 @@ bool connectWiFi() {
   }
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(wifiSsid, wifiPassword);
+  WiFi.begin(wifiSsid);
   Serial.print("Conectando no Wi-Fi ");
   Serial.println(wifiSsid);
 
@@ -58,20 +58,24 @@ void sendDhtReading() {
     return;
   }
 
-  int chk = DHT11.read(DHT11PIN);
-  if (chk != 0) {
-    Serial.print("Falha leitura DHT11, codigo: ");
-    Serial.println(chk);
+  int temperature = dht11.readTemperature();
+  if (temperature == DHT11::ERROR_CHECKSUM || temperature == DHT11::ERROR_TIMEOUT) {
+    Serial.print("Falha leitura temperatura DHT11: ");
+    Serial.println(DHT11::getErrorString(temperature));
     return;
   }
 
-  float humidity = (float)DHT11.humidity;
-  float temperature = (float)DHT11.temperature;
+  int humidity = dht11.readHumidity();
+  if (humidity == DHT11::ERROR_CHECKSUM || humidity == DHT11::ERROR_TIMEOUT) {
+    Serial.print("Falha leitura umidade DHT11: ");
+    Serial.println(DHT11::getErrorString(humidity));
+    return;
+  }
 
   Serial.print("Humidity (%): ");
-  Serial.println(humidity, 2);
+  Serial.println(humidity);
   Serial.print("Temperature (C): ");
-  Serial.println(temperature, 2);
+  Serial.println(temperature);
 
   WiFiClient client;
   HTTPClient http;
@@ -84,17 +88,14 @@ void sendDhtReading() {
   http.addHeader("Content-Type", "application/json");
 
   String payload = "{";
-  payload += "\"deviceId\":\"" + String(deviceId) + "\",";
-  payload += "\"counter\":" + String(messageCounter) + ",";
-  payload += "\"tempC\":" + String(temperature, 2) + ",";
-  payload += "\"humidity\":" + String(humidity, 2) + ",";
-  payload += "\"millis\":" + String(millis());
+  payload += "\"tempC\":" + String(temperature) + ",";
+  payload += "\"source\":\"" + String(deviceId) + "\"";
   payload += "}";
 
   int httpCode = http.POST(payload);
   if (httpCode > 0) {
     String responseBody = http.getString();
-    Serial.print("HTTP ");
+    Serial.print("POST /api/temperature HTTP ");
     Serial.print(httpCode);
     Serial.print(" -> ");
     Serial.println(responseBody);

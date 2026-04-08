@@ -7,7 +7,7 @@
 #endif
 
 const char* wifiSsid = "Frodo";
-const char* wifiPassword = "marceloo";
+//const char* wifiPassword = "marceloo";
 const char* serverHost = "192.168.43.168";
 const uint16_t serverPort = 8000;
 const char* healthPath = "/health";
@@ -24,7 +24,7 @@ bool connectWiFi() {
   }
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(wifiSsid, wifiPassword);
+  WiFi.begin(wifiSsid);
   Serial.print("Conectando no Wi-Fi ");
   Serial.println(wifiSsid);
 
